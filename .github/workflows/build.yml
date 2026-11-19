@@ -1,0 +1,89 @@
+# Builds the Talos boot assets on every pull request and publishes them from main as
+# ${TALOS_VERSION}-${REVISION} (GitHub release + installer images in GHCR). See README.md.
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: shellcheck hack/*.sh
+      - name: Install crane
+        run: |
+          hack/install-crane.sh "${RUNNER_TEMP}/bin"
+          echo "${RUNNER_TEMP}/bin" >>"${GITHUB_PATH}"
+      - name: image.lock matches image.env
+        run: hack/resolve.sh --check
+      - name: Release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source image.env
+          tag="${TALOS_VERSION}-${REVISION}"
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::notice::release ${tag} exists; bump REVISION in image.env if this change should be published"
+          else
+            echo "::notice::merging this publishes release ${tag}"
+          fi
+
+  build:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: hack/build.sh _out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: talos-assets
+          path: |
+            _out/release
+            _out/installers
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: talos-assets
+          path: _out
+      - name: Install crane
+        run: |
+          hack/install-crane.sh "${RUNNER_TEMP}/bin"
+          echo "${RUNNER_TEMP}/bin" >>"${GITHUB_PATH}"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: hack/publish.sh _out
