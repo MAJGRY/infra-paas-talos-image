@@ -1,0 +1,3 @@
+# hack/*.sh source image.env and image.lock relative to their own directory.
+external-sources=true
+source-path=SCRIPTDIR
