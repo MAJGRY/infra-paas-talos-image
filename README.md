@@ -27,7 +27,8 @@ overwritten. Reference installer images by digest; the release notes list them.
    Talos release lists (`ghcr.io/siderolabs/extensions:<version>`) to digests in `image.lock`.
    CI fails when `image.lock` does not match `image.env`.
 3. `hack/build.sh` runs the pinned Talos imager in Docker and builds every output.
-4. On `main`, CI publishes the build (`hack/publish.sh`) unless that release already exists.
+4. On `main` and `release/*`, CI builds and publishes (`hack/publish.sh`) unless that release
+   already exists; then a push builds nothing.
 
 Pull requests build everything too; the outputs are kept as a workflow artifact for 3 days.
 
@@ -41,6 +42,24 @@ git commit -am "feat: Talos v1.14.7"
 
 Check the Talos release notes and the extension versions in the `image.lock` diff before merging.
 A change to the extensions or the build of the same Talos version bumps `REVISION`.
+
+## Older Talos versions (release branches)
+
+`main` builds the newest Talos version and its releases are marked "Latest". An older version, for
+example the one the pilot installs before its upgrade check, is built on a branch
+`release/<talos-version>`:
+
+```bash
+git push origin main:refs/heads/release/v1.14.5   # content of main: its release exists, nothing runs
+git switch -c talos-v1.14.5 origin/release/v1.14.5
+$EDITOR image.env                                  # TALOS_VERSION=v1.14.5, REVISION=1
+hack/resolve.sh
+git commit -am "feat: Talos v1.14.5"               # pull request into release/v1.14.5
+```
+
+Merging that pull request publishes `v1.14.5-1` like `main` does, without marking it "Latest".
+To bring later build changes to a release branch, merge `main` into it and keep the branch's
+`image.env` and `image.lock` (bump `REVISION` if the build changed).
 
 ## Visibility
 
