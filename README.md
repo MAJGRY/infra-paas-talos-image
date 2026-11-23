@@ -5,6 +5,9 @@ image for every node and every cluster: the official Talos release plus the syst
 platform needs, every input pinned by digest. Cluster-specific settings and secrets are never in
 the image; they come with the machine config (`infra-paas-controlplane-config`, `talos/`).
 
+Before changing anything, read [`AGENTS.md`](AGENTS.md): what may never be published here, the
+update flow, and which changes agents may merge.
+
 ## What is built
 
 | Output | Where | Used for |
