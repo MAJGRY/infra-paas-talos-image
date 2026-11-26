@@ -28,6 +28,18 @@ jobs:
           persist-credentials: false
       - name: shellcheck
         run: shellcheck hack/*.sh
+      - name: self-test, an em dash fails the check
+        run: |
+          scratch="$(mktemp -d)"
+          git init -q "${scratch}"
+          printf 'a \xe2\x80\x94 b\n' >"${scratch}/README.md"
+          git -C "${scratch}" add -A
+          if bash hack/check-em-dash.sh --root "${scratch}"; then
+            echo "check-em-dash passed on a tree with an em dash" >&2
+            exit 1
+          fi
+      - name: em dash
+        run: hack/check-em-dash.sh
       - name: Install crane
         run: |
           hack/install-crane.sh "${RUNNER_TEMP}/bin"

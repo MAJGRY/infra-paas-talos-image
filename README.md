@@ -33,6 +33,9 @@ overwritten. Reference installer images by digest; the release notes list them.
 4. On `main` and `release/*`, CI builds and publishes (`hack/publish.sh`) unless that release
    already exists; then a push builds nothing.
 
+CI also runs `hack/check-em-dash.sh` with a self-test that plants an em dash on a scratch tree:
+no U+2014 anywhere in the tracked files (WS14-T299).
+
 Pull requests build everything too; the outputs are kept as a workflow artifact for 3 days.
 
 ## Updating Talos
